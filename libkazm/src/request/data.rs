@@ -1,4 +1,4 @@
-use crate::method::Method;
+use crate::request::method::Method;
 use std::fmt::{Formatter, Display};
 
 pub struct RequestData {
