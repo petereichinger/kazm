@@ -6,6 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use log::{debug, error, info};
 
+use crate::request::header::Header;
+use crate::request::pathmatcher::parse_path;
+
 mod request;
 
 /// A simple web server that currently does not respond with any message whatsoever.
@@ -68,11 +71,25 @@ impl WebServer {
                         Err(err) => { err.to_string() }
                     });
                     thread::spawn(move || {
-                        match request::header::get_headers(&mut stream) {
+                        match Header::get(&mut stream) {
                             Ok(_headers) => {
-                                write!(stream, "HTTP/1.1 200 OK\r\n\r\n").unwrap_or_else(|e| error!("Could not write response {}", e));
+                                let path_result = parse_path(&_headers.path);
+
+                                match path_result {
+                                    Ok((path, params)) => {
+                                        info!("{} {:?}", path, params);
+                                        write!(stream, "HTTP/1.1 200 OK\r\n\r\n").unwrap();
+                                    }
+                                    Err(e) => {
+                                        error!("Error while parsing request. {}", e);
+                                        write!(stream, "HTTP/1.1 400 BadRequest\r\n\r\n").unwrap();
+                                    }
+                                }
                             }
-                            Err(_) => { error!("Encountered error while parsing headers") }
+                            Err(e) => {
+                                error!("Encountered error while parsing headers {}", e);
+                                write!(stream, "HTTP/1.1 400 BadRequest\r\n\r\n").unwrap();
+                            }
                         }
                     });
                 }
