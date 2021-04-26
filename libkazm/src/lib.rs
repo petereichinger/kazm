@@ -8,8 +8,11 @@ use log::{debug, error, info};
 
 use crate::request::header::Header;
 use crate::request::pathmatcher::parse_path;
+use crate::response::status_code::StatusCode;
+use crate::response::response_writer::{write_response, write_empty_response};
 
 mod request;
+mod response;
 
 /// A simple web server that currently does not respond with any message whatsoever.
 pub struct WebServer {
@@ -78,17 +81,17 @@ impl WebServer {
                                 match path_result {
                                     Ok((path, params)) => {
                                         info!("{} {:?}", path, params);
-                                        write!(stream, "HTTP/1.1 200 OK\r\n\r\n").unwrap();
+                                        write_empty_response(&mut stream, StatusCode::OK).unwrap();
                                     }
                                     Err(e) => {
                                         error!("Error while parsing request. {}", e);
-                                        write!(stream, "HTTP/1.1 400 BadRequest\r\n\r\n").unwrap();
+                                        write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
                                     }
                                 }
                             }
                             Err(e) => {
                                 error!("Encountered error while parsing headers {}", e);
-                                write!(stream, "HTTP/1.1 400 BadRequest\r\n\r\n").unwrap();
+                                write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
                             }
                         }
                     });
