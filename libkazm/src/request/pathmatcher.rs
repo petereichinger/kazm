@@ -27,7 +27,7 @@ pub fn parse_path(path: &str) -> Result<(String, HashMap<String, String>), Strin
 
     let (path, params_string) = path.split_at(path_end_index);
 
-    match parse_params(params_string.strip_prefix(PARAM_BEGIN_DELIMITER).unwrap_or("")) {
+    match parse_params(params_string.strip_prefix(PARAM_BEGIN_DELIMITER).unwrap_or(params_string)) {
         Ok(params) => { Ok((path.to_string(), params)) }
         Err(e) => { Err(e) }
     }
