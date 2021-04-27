@@ -91,6 +91,7 @@ dependencies = [
 name = "kazm"
 version = "0.1.0"
 dependencies = [
+ "ctrlc",
  "libkazm",
  "log",
  "simple_logger",

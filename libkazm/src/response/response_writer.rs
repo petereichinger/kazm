@@ -8,5 +8,5 @@ pub fn write_empty_response(stream: &mut TcpStream, code: StatusCode) -> std::io
 }
 
 pub fn write_response(stream: &mut TcpStream, code: StatusCode, message: &str) -> std::io::Result<()> {
-    write!(stream, "HTTP/1.1 {}\r\n\r\n", StatusCode::to_response(code))
+    write!(stream, "HTTP/1.1 {}\r\n\r\n{}", StatusCode::to_response(code), message)
 }

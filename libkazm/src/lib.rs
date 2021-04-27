@@ -1,28 +1,35 @@
 use std::{io, thread};
-use std::io::{Error, Write};
-use std::net::{SocketAddrV4, TcpListener};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::io::Error;
+use std::net::{SocketAddrV4, TcpListener, TcpStream};
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use log::{debug, error, info};
+use log::{error, info};
 
 use crate::request::header::Header;
 use crate::request::pathmatcher::parse_path;
+use crate::response::response_writer::write_empty_response;
 use crate::response::status_code::StatusCode;
-use crate::response::response_writer::{write_response, write_empty_response};
 
 mod request;
 mod response;
 
+struct CallbackHandler<CB> where CB: FnMut() {
+    callbacks: HashMap<String, CB>,
+}
+
+
 /// A simple web server that currently does not respond with any message whatsoever.
 pub struct WebServer {
-    address: SocketAddrV4
+    address: SocketAddrV4,
+    running: RwLock<bool>,
 }
 
 impl WebServer {
     /// Create a new instance of the web server.
     pub fn new(address: SocketAddrV4) -> WebServer {
-        WebServer { address }
+        WebServer { address, running: RwLock::new(true) }
     }
 
     /// Get the current address the web server is bound to
@@ -30,19 +37,14 @@ impl WebServer {
         self.address
     }
 
+    pub fn stop(&self) {
+        let mut n = self.running.write().unwrap();
+        *n = false;
+    }
+
     /// Run the web server.
     /// This function returns with an error, if binding to the specified socket is not possible see [Self::address()]
     pub fn run(&self) -> Result<(), Error> {
-        let run = Arc::new(AtomicBool::new(true));
-        let run_clone = run.clone();
-        if let Err(e) = ctrlc::set_handler(move || {
-            info!("Closing web server");
-            run_clone.store(false, Ordering::Relaxed);
-        }) {
-            error!("Could not add Ctrl+C handler: {}", e);
-            return Err(Error::new(io::ErrorKind::Other, "Ctrl-C handler could not be added"));
-        };
-
         info!("Trying to bind to {}", self.address);
 
         let listener = match TcpListener::bind(self.address) {
@@ -62,45 +64,54 @@ impl WebServer {
         }
 
         for stream in listener.incoming() {
-            if !run.load(Ordering::Relaxed) {
+            let running_reader = self.running.read().unwrap();
+
+            if !*running_reader {
                 break;
             }
 
             match stream {
                 Err(e) if e.kind() != io::ErrorKind::WouldBlock => { error!("Error while opening connection: {}", e); }
                 Ok(mut stream) => {
-                    debug!("Got connection from {}", match stream.peer_addr() {
-                        Ok(addr) => { addr.to_string() }
-                        Err(err) => { err.to_string() }
-                    });
-                    thread::spawn(move || {
-                        match Header::get(&mut stream) {
-                            Ok(_headers) => {
-                                let path_result = parse_path(&_headers.path);
-
-                                match path_result {
-                                    Ok((path, params)) => {
-                                        info!("{} {:?}", path, params);
-                                        write_empty_response(&mut stream, StatusCode::OK).unwrap();
-                                    }
-                                    Err(e) => {
-                                        error!("Error while parsing request. {}", e);
-                                        write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error!("Encountered error while parsing headers {}", e);
-                                write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
-                            }
-                        }
-                    });
+                    if let Ok(addr) = stream.peer_addr()
+                    {
+                        info!("Got connection from {}", addr);
+                        self.handle_connection(stream);
+                    } else {
+                        error!("Error while initializing connection");
+                    }
                 }
                 _ => {}
             }
         }
 
         Ok(())
+    }
+
+    fn handle_connection(&self, mut stream: TcpStream) {
+        thread::spawn(move || {
+            match Header::get(&mut stream)
+            {
+                Ok(_headers) => {
+                    let path_result = parse_path(&_headers.path);
+
+                    match path_result {
+                        Ok((path, params)) => {
+                            info!("{} {:?}", path, params);
+                            write_empty_response(&mut stream, StatusCode::OK).unwrap();
+                        }
+                        Err(e) => {
+                            error!("Error while parsing request. {}", e);
+                            write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Encountered error while parsing headers {}", e);
+                    write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                }
+            }
+        });
     }
 }
 

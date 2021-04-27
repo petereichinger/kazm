@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[derive(strum_macros::EnumString, strum_macros::ToString, Debug, Copy, Clone)]
 pub enum StatusCode {
     OK = 200,
