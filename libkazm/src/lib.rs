@@ -97,7 +97,7 @@ impl WebServer {
                     match path_result {
                         Ok((path, params)) => {
                             info!("{} {:?}", path, params);
-                            write_empty_response(&mut stream, StatusCode::OK).unwrap();
+                            write_empty_response(&mut stream, StatusCode::Ok).unwrap();
                         }
                         Err(e) => {
                             error!("Error while parsing request. {}", e);
