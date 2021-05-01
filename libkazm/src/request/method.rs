@@ -1,21 +1,21 @@
 #[derive(strum_macros::EnumString, strum_macros::ToString)]
 pub enum Method {
-    #[strum(serialize="GET")]
+    #[strum(serialize = "GET")]
     Get,
-    #[strum(serialize="HEAD")]
+    #[strum(serialize = "HEAD")]
     Head,
-    #[strum(serialize="POST")]
+    #[strum(serialize = "POST")]
     Post,
-    #[strum(serialize="PUT")]
+    #[strum(serialize = "PUT")]
     Put,
-    #[strum(serialize="DELETE")]
+    #[strum(serialize = "DELETE")]
     Delete,
-    #[strum(serialize="CONNECT")]
+    #[strum(serialize = "CONNECT")]
     Connect,
-    #[strum(serialize="OPTIONS")]
+    #[strum(serialize = "OPTIONS")]
     Options,
-    #[strum(serialize="TRACE")]
+    #[strum(serialize = "TRACE")]
     Trace,
-    #[strum(serialize="PATCH")]
+    #[strum(serialize = "PATCH")]
     Patch,
 }

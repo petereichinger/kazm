@@ -6,10 +6,7 @@ use std::str::FromStr;
 
 use log::error;
 
-use crate::request::header;
-use crate::request::method;
-use crate::request::method::Method;
-
+use super::method::Method;
 
 pub struct Header {
     pub method: Method,
@@ -25,13 +22,13 @@ impl Display for Header {
 }
 
 impl Header {
-    pub fn get(stream: &mut TcpStream)-> Result<Header, &str>{
+    pub fn get(stream: &mut TcpStream) -> Result<Header, &str> {
         let mut lines_iter = std::io::BufReader::new(stream).lines();
-        let line = &*lines_iter.next().unwrap_or_else(||Ok("".to_string())).unwrap();
+        let line = &*lines_iter.next().unwrap_or_else(|| Ok("".to_string())).unwrap();
 
         let mut split = line.split_whitespace();
         let method_string = split.next().unwrap_or_default();
-        let method = method::Method::from_str(method_string);
+        let method = Method::from_str(method_string);
         let path = split.next();
         let version = split.next();
         if method.is_err() {
@@ -63,7 +60,7 @@ impl Header {
             }
         }
 
-        Ok(header::Header {
+        Ok(Header {
             method: method.unwrap(),
             path: path.unwrap().to_string(),
             version: version.unwrap().to_string(),

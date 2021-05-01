@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::net::TcpStream;
 
-use crate::response::status_code::StatusCode;
+use super::status_code::StatusCode;
 
 pub fn write_empty_response(stream: &mut TcpStream, code: StatusCode) -> std::io::Result<()> {
     write_response(stream, code, "")

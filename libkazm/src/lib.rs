@@ -6,10 +6,10 @@ use std::sync::RwLock;
 
 use log::{error, info};
 
-use crate::request::header::Header;
-use crate::request::pathmatcher::parse_path;
-use crate::response::response_writer::write_empty_response;
-use crate::response::status_code::StatusCode;
+use request::header::Header;
+use request::pathmatcher::parse_path;
+use response::response_writer::write_empty_response;
+use response::status_code::StatusCode;
 
 mod request;
 mod response;
