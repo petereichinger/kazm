@@ -66,12 +66,20 @@ impl WebServer {
             return Err(e);
         }
 
+        let mut last_run_check = std::time::Instant::now();
+        let check_interval = std::time::Duration::from_millis(250);
         for stream in listener.incoming() {
-            let running_reader = self.running.read().unwrap();
+            let current_run_check = std::time::Instant::now();
+            if (current_run_check - last_run_check) > check_interval {
+                let running_reader = self.running.read().unwrap();
 
-            if !*running_reader {
-                break;
+                if !*running_reader {
+                    break;
+                }
+
+                last_run_check = current_run_check
             }
+
 
             match stream {
                 Err(e) if e.kind() != io::ErrorKind::WouldBlock => { error!("Error while opening connection: {}", e); }
