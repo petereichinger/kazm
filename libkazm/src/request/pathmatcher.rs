@@ -23,7 +23,7 @@ fn parse_params(params_string: &str) -> Result<HashMap<String, String>, String> 
 }
 
 pub fn parse_path(path: &str) -> Result<(String, HashMap<String, String>), String> {
-    let path_end_index = path.find(PARAM_BEGIN_DELIMITER).unwrap_or(path.len());
+    let path_end_index = path.find(PARAM_BEGIN_DELIMITER).unwrap_or_else(|| path.len());
 
     let (path, params_string) = path.split_at(path_end_index);
 

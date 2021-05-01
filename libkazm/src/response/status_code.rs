@@ -1,6 +1,7 @@
 #[derive(strum_macros::EnumString, strum_macros::ToString, Debug, Copy, Clone)]
 pub enum StatusCode {
-    OK = 200,
+    #[strum(serialize="OK")]
+    Ok = 200,
     BadRequest = 400,
     NotFound = 404,
 }
