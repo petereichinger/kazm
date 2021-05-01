@@ -1,9 +1,8 @@
 use std::{io, thread};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::io::Error;
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
-use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{ RwLock};
 
 use log::{error, info};
 
@@ -15,9 +14,9 @@ use crate::response::status_code::StatusCode;
 mod request;
 mod response;
 
-struct CallbackHandler<CB> where CB: FnMut() {
-    callbacks: HashMap<String, CB>,
-}
+// struct CallbackHandler<CB> where CB: FnMut() {
+//     callbacks: HashMap<String, CB>,
+// }
 
 
 /// A simple web server that currently does not respond with any message whatsoever.
@@ -72,7 +71,7 @@ impl WebServer {
 
             match stream {
                 Err(e) if e.kind() != io::ErrorKind::WouldBlock => { error!("Error while opening connection: {}", e); }
-                Ok(mut stream) => {
+                Ok(stream) => {
                     if let Ok(addr) = stream.peer_addr()
                     {
                         info!("Got connection from {}", addr);
