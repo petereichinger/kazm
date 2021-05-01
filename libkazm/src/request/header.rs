@@ -25,9 +25,9 @@ impl Display for Header {
 }
 
 impl Header {
-    pub fn get(stream: &mut TcpStream)-> Result<header::Header, &str>{
+    pub fn get(stream: &mut TcpStream)-> Result<Header, &str>{
         let mut lines_iter = std::io::BufReader::new(stream).lines();
-        let line = &*lines_iter.next().unwrap_or(Ok("".to_string())).unwrap_or_default();
+        let line = &*lines_iter.next().unwrap_or_else(||Ok("".to_string())).unwrap();
 
         let mut split = line.split_whitespace();
         let method_string = split.next().unwrap_or_default();
