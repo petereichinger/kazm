@@ -2,7 +2,7 @@ use std::{io, thread};
 // use std::collections::HashMap;
 use std::io::Error;
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
-use std::sync::{ RwLock};
+use std::sync::RwLock;
 
 use log::{error, info};
 
@@ -36,6 +36,9 @@ impl WebServer {
         self.address
     }
 
+    /// Stop the web server.
+    /// Currently running requests will continue to run.
+    /// Any further requests are ignored.
     pub fn stop(&self) {
         let mut n = self.running.write().unwrap();
         *n = false;
@@ -43,6 +46,7 @@ impl WebServer {
 
     /// Run the web server.
     /// This function returns with an error, if binding to the specified socket is not possible see [Self::address()]
+    /// The server runs in an infinite loop. To stop the server call [Self::stop()]
     pub fn run(&self) -> Result<(), Error> {
         info!("Trying to bind to {}", self.address);
 
