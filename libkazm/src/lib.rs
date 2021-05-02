@@ -1,8 +1,8 @@
 use std::{io, thread};
-// use std::collections::HashMap;
+use std::collections::HashMap;
 use std::io::Error;
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use log::{error, info};
 
@@ -12,28 +12,77 @@ use response::response_writer::write_empty_response;
 use response::status_code::StatusCode;
 
 mod request;
-mod response;
+pub mod response;
 
-// struct CallbackHandler<CB> where CB: FnMut() {
-//     callbacks: HashMap<String, CB>,
-// }
+#[derive(Debug)]
+pub enum CallbackError {
+    AlreadyRegistered,
+    NoCallbackForPath,
+}
+
+pub struct CallbackHandler {
+    callbacks: HashMap<String, Box<dyn Fn() -> StatusCode + Sync + Send>>,
+}
+
+impl Default for CallbackHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CallbackHandler {
+    pub fn new() -> CallbackHandler {
+        CallbackHandler { callbacks: HashMap::new() }
+    }
+
+    pub fn register(&mut self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {
+        if self.callbacks.contains_key(path) {
+            return Err(CallbackError::AlreadyRegistered);
+        }
+
+        self.callbacks.insert(String::from(path), func);
+
+        Ok(())
+    }
 
 
-/// A simple web server that currently does not respond with any message whatsoever.
+    pub fn handle(&self, path: &str) -> Result<StatusCode, CallbackError> {
+        match self.callbacks.get(path) {
+            None => {
+                error!("No callback found for path {}", path);
+                Err(CallbackError::NoCallbackForPath)
+            }
+            Some(func) => Ok(func())
+        }
+    }
+}
+
+
+/// A simple web server that currently only verifies if a request has well formatted parameters
 pub struct WebServer {
     address: SocketAddrV4,
     running: RwLock<bool>,
+    callback_handler: Arc<RwLock<CallbackHandler>>,
 }
 
 impl WebServer {
     /// Create a new instance of the web server.
     pub fn new(address: SocketAddrV4) -> WebServer {
-        WebServer { address, running: RwLock::new(true) }
+        WebServer {
+            address,
+            running: RwLock::new(true),
+            callback_handler: Arc::new(RwLock::new(CallbackHandler::new())),
+        }
     }
 
     /// Get the current address the web server is bound to
     pub fn address(&self) -> SocketAddrV4 {
         self.address
+    }
+
+    pub fn register_callback(&self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {
+        info!("Registering callback for path {}", path);
+        self.callback_handler.write().unwrap().register(path, func)
     }
 
     /// Stop the web server.
@@ -100,29 +149,32 @@ impl WebServer {
     }
 
     fn handle_connection(&self, mut stream: TcpStream) {
-        thread::spawn(move || {
-            match Header::get(&mut stream)
-            {
-                Ok(_headers) => {
-                    let path_result = parse_path(&_headers.path);
+        let cb_handler = self.callback_handler.clone();
+        thread::spawn(
+            move || {
+                match Header::get(&mut stream)
+                {
+                    Ok(_headers) => {
+                        let path_result = parse_path(&_headers.path);
 
-                    match path_result {
-                        Ok((path, params)) => {
-                            info!("{} {:?}", path, params);
-                            write_empty_response(&mut stream, StatusCode::Ok).unwrap();
-                        }
-                        Err(e) => {
-                            error!("Error while parsing request. {}", e);
-                            write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                        match path_result {
+                            Ok((path, params)) => {
+                                info!("{} {:?}", path, params);
+                                let code = cb_handler.read().unwrap().handle(&path).unwrap_or(StatusCode::NotFound);
+                                write_empty_response(&mut stream, code).unwrap();
+                            }
+                            Err(e) => {
+                                error!("Error while parsing request. {}", e);
+                                write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                            }
                         }
                     }
+                    Err(e) => {
+                        error!("Encountered error while parsing headers {}", e);
+                        write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                    }
                 }
-                Err(e) => {
-                    error!("Encountered error while parsing headers {}", e);
-                    write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
-                }
-            }
-        });
+            });
     }
 }
 

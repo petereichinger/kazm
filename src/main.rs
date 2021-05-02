@@ -16,7 +16,7 @@ fn main() -> Result<(), Error> {
     let address = Ipv4Addr::new(127, 0, 0, 1);
     let bind_address = SocketAddrV4::new(address, port);
 
-    let server = Arc::new(WebServer::new(bind_address));
+    let  server = Arc::new(WebServer::new(bind_address));
 
     let server_clone = server.clone();
 
@@ -28,6 +28,11 @@ fn main() -> Result<(), Error> {
         error!("Could not add Ctrl+C handler: {}", e);
         return Err(Error::new(io::ErrorKind::Other, "Ctrl-C handler could not be added"));
     };
+
+    server.register_callback("/Test", Box::new(|| {
+        info!("Test");
+        libkazm::response::status_code::StatusCode::Ok
+    })).unwrap_or_else(|e| error!("Could not register callback {:?}", e));
 
     server.run()
 }
