@@ -1,64 +1,23 @@
+mod callback_handler;
+mod request;
+pub mod response;
+
 use std::{io, thread};
-use std::collections::HashMap;
 use std::io::Error;
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
 use std::sync::{Arc, RwLock};
 
 use log::{error, info};
 
+use callback_handler::{CallbackError, CallbackHandler};
 use request::header::Header;
 use request::pathmatcher::parse_path;
 use response::response_writer::write_empty_response;
 use response::status_code::StatusCode;
 
-mod request;
-pub mod response;
-
-#[derive(Debug)]
-pub enum CallbackError {
-    AlreadyRegistered,
-    NoCallbackForPath,
-}
-
-pub struct CallbackHandler {
-    callbacks: HashMap<String, Box<dyn Fn() -> StatusCode + Sync + Send>>,
-}
-
-impl Default for CallbackHandler {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CallbackHandler {
-    pub fn new() -> CallbackHandler {
-        CallbackHandler { callbacks: HashMap::new() }
-    }
-
-    pub fn register(&mut self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {
-        if self.callbacks.contains_key(path) {
-            return Err(CallbackError::AlreadyRegistered);
-        }
-
-        self.callbacks.insert(String::from(path), func);
-
-        Ok(())
-    }
-
-
-    pub fn handle(&self, path: &str) -> Result<StatusCode, CallbackError> {
-        match self.callbacks.get(path) {
-            None => {
-                error!("No callback found for path {}", path);
-                Err(CallbackError::NoCallbackForPath)
-            }
-            Some(func) => Ok(func())
-        }
-    }
-}
-
-
-/// A simple web server that currently only verifies if a request has well formatted parameters
+/// A simple web server that supports setting static callback methods depending on the path.
+///
+/// If a path cannot be found the server returns 404 Not Found. Otherwise 200 OK.
 pub struct WebServer {
     address: SocketAddrV4,
     running: RwLock<bool>,
@@ -80,12 +39,37 @@ impl WebServer {
         self.address
     }
 
+    /// Register a callback function for a specified path
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path to use
+    /// - `func` Function to use as callback
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] if successful, or [`Err<CallbackError>`] in case something went wrong
     pub fn register_callback(&self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {
         info!("Registering callback for path {}", path);
         self.callback_handler.write().unwrap().register(path, func)
     }
 
+    /// Unregister a previsously registered callback at the specified path
+    ///
+    /// # Parameters
+    ///
+    /// - `path` The path for the callback
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] if successful, or [`Err<CallbackError>`] in case something went wrong
+    pub fn unregister_callback(&self, path: &str) -> Result<(), CallbackError> {
+        info!("Unregistering callback for path {}", path);
+        self.callback_handler.write().unwrap().unregister(path)
+    }
+
     /// Stop the web server.
+    ///
     /// Currently running requests will continue to run.
     /// Any further requests are ignored.
     pub fn stop(&self) {
@@ -94,6 +78,7 @@ impl WebServer {
     }
 
     /// Run the web server.
+    ///
     /// This function returns with an error, if binding to the specified socket is not possible see [Self::address()]
     /// The server runs in an infinite loop. To stop the server call [Self::stop()]
     pub fn run(&self) -> Result<(), Error> {
