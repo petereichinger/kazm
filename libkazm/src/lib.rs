@@ -1,34 +1,36 @@
+mod callback_handler;
+mod request;
+pub mod response;
+
 use std::{io, thread};
-// use std::collections::HashMap;
 use std::io::Error;
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use log::{error, info};
 
+use callback_handler::{CallbackError, CallbackHandler};
 use request::header::Header;
-use request::pathmatcher::parse_path;
 use response::response_writer::write_empty_response;
 use response::status_code::StatusCode;
 
-mod request;
-mod response;
-
-// struct CallbackHandler<CB> where CB: FnMut() {
-//     callbacks: HashMap<String, CB>,
-// }
-
-
-/// A simple web server that currently does not respond with any message whatsoever.
+/// A simple web server that supports setting static callback methods depending on the path.
+///
+/// If a path cannot be found the server returns 404 Not Found. Otherwise 200 OK.
 pub struct WebServer {
     address: SocketAddrV4,
     running: RwLock<bool>,
+    callback_handler: Arc<RwLock<CallbackHandler>>,
 }
 
 impl WebServer {
     /// Create a new instance of the web server.
     pub fn new(address: SocketAddrV4) -> WebServer {
-        WebServer { address, running: RwLock::new(true) }
+        WebServer {
+            address,
+            running: RwLock::new(true),
+            callback_handler: Arc::new(RwLock::new(CallbackHandler::new())),
+        }
     }
 
     /// Get the current address the web server is bound to
@@ -36,7 +38,37 @@ impl WebServer {
         self.address
     }
 
+    /// Register a callback function for a specified path
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path to use
+    /// - `func` Function to use as callback
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] if successful, or [`Err<CallbackError>`] in case something went wrong
+    pub fn register_callback(&self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {
+        info!("Registering callback for path {}", path);
+        self.callback_handler.write().unwrap().register(path, func)
+    }
+
+    /// Unregister a previsously registered callback at the specified path
+    ///
+    /// # Parameters
+    ///
+    /// - `path` The path for the callback
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] if successful, or [`Err<CallbackError>`] in case something went wrong
+    pub fn unregister_callback(&self, path: &str) -> Result<(), CallbackError> {
+        info!("Unregistering callback for path {}", path);
+        self.callback_handler.write().unwrap().unregister(path)
+    }
+
     /// Stop the web server.
+    ///
     /// Currently running requests will continue to run.
     /// Any further requests are ignored.
     pub fn stop(&self) {
@@ -45,6 +77,7 @@ impl WebServer {
     }
 
     /// Run the web server.
+    ///
     /// This function returns with an error, if binding to the specified socket is not possible see [Self::address()]
     /// The server runs in an infinite loop. To stop the server call [Self::stop()]
     pub fn run(&self) -> Result<(), Error> {
@@ -100,29 +133,32 @@ impl WebServer {
     }
 
     fn handle_connection(&self, mut stream: TcpStream) {
-        thread::spawn(move || {
-            match Header::get(&mut stream)
-            {
-                Ok(_headers) => {
-                    let path_result = parse_path(&_headers.path);
+        let cb_handler = self.callback_handler.clone();
+        thread::spawn(
+            move || {
+                match Header::get(&mut stream)
+                {
+                    Ok(_headers) => {
+                        let path_result = request::url_matcher::parse_url(&_headers.path);
 
-                    match path_result {
-                        Ok((path, params)) => {
-                            info!("{} {:?}", path, params);
-                            write_empty_response(&mut stream, StatusCode::Ok).unwrap();
-                        }
-                        Err(e) => {
-                            error!("Error while parsing request. {}", e);
-                            write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                        match path_result {
+                            Ok((path, params)) => {
+                                info!("{} {:?}", path, params);
+                                let code = cb_handler.read().unwrap().handle(&path).unwrap_or(StatusCode::NotFound);
+                                write_empty_response(&mut stream, code).unwrap();
+                            }
+                            Err(e) => {
+                                error!("Error while parsing request. {}", e);
+                                write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                            }
                         }
                     }
+                    Err(e) => {
+                        error!("Encountered error while parsing headers {}", e);
+                        write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
+                    }
                 }
-                Err(e) => {
-                    error!("Encountered error while parsing headers {}", e);
-                    write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
-                }
-            }
-        });
+            });
     }
 }
 
