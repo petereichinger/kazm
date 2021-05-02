@@ -11,7 +11,6 @@ use log::{error, info};
 
 use callback_handler::{CallbackError, CallbackHandler};
 use request::header::Header;
-use request::pathmatcher::parse_path;
 use response::response_writer::write_empty_response;
 use response::status_code::StatusCode;
 
@@ -140,7 +139,7 @@ impl WebServer {
                 match Header::get(&mut stream)
                 {
                     Ok(_headers) => {
-                        let path_result = parse_path(&_headers.path);
+                        let path_result = request::url_matcher::parse_url(&_headers.path);
 
                         match path_result {
                             Ok((path, params)) => {
