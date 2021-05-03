@@ -142,7 +142,7 @@ impl WebServer {
                 match Header::parse(&mut lines)
                 {
                     Ok(_headers) => {
-                        let path_result = request::url_matcher::parse_url(&_headers.path);
+                        let path_result = request::url_matcher::parse_url(&_headers.url);
 
                         match path_result {
                             Ok((path, params)) => {

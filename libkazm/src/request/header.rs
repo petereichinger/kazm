@@ -19,14 +19,14 @@ pub enum HeaderError {
 /// Contains all header information of a HTTP request
 pub struct Header {
     pub method: Method,
-    pub path: String,
+    pub url: String,
     pub version: String,
     pub headers: HashMap<String, String>,
 }
 
 impl Display for Header {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} {} {:?}", self.method.to_string(), self.path, self.version, self.headers)
+        write!(f, "{} {} {} {:?}", self.method.to_string(), self.url, self.version, self.headers)
     }
 }
 
@@ -48,13 +48,13 @@ impl Header {
         let mut split = line.split_whitespace();
         let method_string = split.next().unwrap_or_default();
         let method = Method::from_str(method_string);
-        let path = split.next();
+        let url = split.next();
         let version = split.next();
         if method.is_err() {
             error!("Unknown method {}", method_string);
             return Err(HeaderError::InvalidMethod(String::from(method_string)));
         }
-        if path.is_none() {
+        if url.is_none() {
             error!("No path");
             return Err(HeaderError::MissingPath);
         }
@@ -86,7 +86,7 @@ impl Header {
 
         Ok(Header {
             method: method.unwrap(),
-            path: path.unwrap().to_string(),
+            url: url.unwrap().to_string(),
             version: version.unwrap().to_string(),
             headers: header_values,
         })
