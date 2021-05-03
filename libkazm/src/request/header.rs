@@ -1,13 +1,22 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::io::BufRead;
-use std::net::TcpStream;
 use std::str::FromStr;
 
 use log::error;
 
 use super::method::Method;
 
+/// Struct containing all errors that can occur while parsing the header in [Header::parse]
+#[derive(strum_macros::EnumString, strum_macros::ToString, PartialEq, Debug)]
+pub enum HeaderError {
+    Empty,
+    InvalidMethod(String),
+    MissingPath,
+    MissingVersion,
+    ParamError,
+}
+
+/// Contains all header information of a HTTP request
 pub struct Header {
     pub method: Method,
     pub path: String,
@@ -22,10 +31,20 @@ impl Display for Header {
 }
 
 impl Header {
-    pub fn get(stream: &mut TcpStream) -> Result<Header, &str> {
-        let mut lines_iter = std::io::BufReader::new(stream).lines();
-        let line = &*lines_iter.next().unwrap_or_else(|| Ok("".to_string())).unwrap();
-
+    /// Parse the header from a specified [Iterator]
+    ///
+    /// Parsing includes the prelude of the request (e.g. GET /Bar/Baz HTTP1.1)
+    /// And all header fields
+    ///
+    /// # Returns
+    ///
+    /// An instance of [Header] if parsing was successful, or HeaderError indicating what went wrong otherwise
+    pub fn parse(lines: &mut dyn Iterator<Item=std::io::Result<String>>) -> Result<Header, HeaderError> {
+        let line = &*lines.next().unwrap_or_else(|| Ok("".to_string())).unwrap();
+        if line.is_empty(){
+            error!("Request contains no text");
+            return Err(HeaderError::Empty);
+        }
         let mut split = line.split_whitespace();
         let method_string = split.next().unwrap_or_default();
         let method = Method::from_str(method_string);
@@ -33,16 +52,21 @@ impl Header {
         let version = split.next();
         if method.is_err() {
             error!("Unknown method {}", method_string);
-            return Err("Invalid method");
+            return Err(HeaderError::InvalidMethod(String::from(method_string)));
         }
-        if path.is_none() || version.is_none() {
-            error!("No path or version");
-            return Err("No path or version");
+        if path.is_none() {
+            error!("No path");
+            return Err(HeaderError::MissingPath);
+        }
+
+        if version.is_none() {
+            error!("No request version");
+            return Err(HeaderError::MissingVersion);
         }
 
         let mut header_values = HashMap::new();
         loop {
-            match lines_iter.next() {
+            match lines.next() {
                 Some(Ok(hdr)) if !hdr.is_empty() => {
                     let mut header_split = hdr.split(": ");
                     let key = header_split.next().unwrap_or_default();
@@ -54,7 +78,7 @@ impl Header {
                 }
                 Some(Err(e)) => {
                     error!("Error while reading header: {}", e);
-                    return Err("error while reading header");
+                    return Err(HeaderError::ParamError);
                 }
                 _ => { break; }
             }

@@ -1,9 +1,9 @@
-mod callback_handler;
-mod request;
+pub mod callback_handler;
+pub mod request;
 pub mod response;
 
 use std::{io, thread};
-use std::io::Error;
+use std::io::{Error, BufReader, BufRead};
 use std::net::{SocketAddrV4, TcpListener, TcpStream};
 use std::sync::{Arc, RwLock};
 
@@ -136,7 +136,10 @@ impl WebServer {
         let cb_handler = self.callback_handler.clone();
         thread::spawn(
             move || {
-                match Header::get(&mut stream)
+
+                let stream_reader = BufReader::new(&stream);
+                let mut lines = stream_reader.lines();
+                match Header::parse(&mut lines)
                 {
                     Ok(_headers) => {
                         let path_result = request::url_matcher::parse_url(&_headers.path);
@@ -154,7 +157,7 @@ impl WebServer {
                         }
                     }
                     Err(e) => {
-                        error!("Encountered error while parsing headers {}", e);
+                        error!("Encountered error while parsing headers {}", e.to_string());
                         write_empty_response(&mut stream, StatusCode::BadRequest).unwrap();
                     }
                 }
