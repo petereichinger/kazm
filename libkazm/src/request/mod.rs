@@ -1,13 +1,15 @@
 pub mod header;
 pub mod method;
-pub mod url_matcher;
+pub mod uri_parser;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::request::header::HeaderError;
+    use crate::request::uri_parser::{UriParseError, UriValues};
 
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn empty_request_results_in_error() {
@@ -57,7 +59,7 @@ mod tests {
         let header = parse_result.unwrap();
 
         assert_eq!(header.method, method::Method::Get);
-        assert_eq!(header.path, path);
+        assert_eq!(header.uri, path);
         assert_eq!(header.version, version);
         assert_eq!(header.headers, Default::default())
     }
@@ -73,14 +75,57 @@ mod tests {
 
         let header = parse_result.unwrap();
 
-        let mut hash_map= HashMap::new();
+        let mut hash_map = HashMap::new();
 
         hash_map.insert(String::from("Foo"), String::from("Bar"));
         hash_map.insert(String::from("Baz"), String::from("Blubb"));
 
         assert_eq!(header.method, method::Method::Get);
-        assert_eq!(header.path, path);
+        assert_eq!(header.uri, path);
         assert_eq!(header.version, version);
         assert_eq!(header.headers, hash_map);
+    }
+
+
+    #[test]
+    fn uri_parser_does_not_parse_empty_uri_correctly() {
+        let values = UriValues::from("").err();
+
+        assert_eq!(values, Some(UriParseError::MissingPath));
+    }
+
+    #[test]
+    fn uri_parser_basic_uri_successfully() {
+        let values = UriValues::from("/Foo").unwrap();
+
+        assert_eq!(values.path, String::from("/Foo"));
+        assert_eq!(values.parameters, Default::default());
+    }
+
+    #[test]
+    fn uri_parser_fails_when_path_is_missing() {
+        let values = UriValues::from("?Foo=Bar").err();
+
+        assert_eq!(values, Some(UriParseError::MissingPath));
+    }
+
+    #[test]
+    fn uri_parser_fails_when_duplicate_paths_are_specified() {
+        let values = UriValues::from("/Foo?Foo=Bar&Foo=Baz").err();
+
+        assert_eq!(values, Some(UriParseError::DuplicateKey(String::from("Foo"))));
+    }
+
+    #[test]
+    fn uri_parser_successfully() {
+        let UriValues { path: x, parameters: y } = UriValues::from("/Foo?Foo=Bar&Bar=Baz").unwrap();
+
+        assert_eq!(x, "/Foo");
+
+        let mut hash_map = HashMap::new();
+        hash_map.insert(String::from("Foo"), String::from("Bar"));
+        hash_map.insert(String::from("Bar"), String::from("Baz"));
+
+        assert_eq!(y, hash_map);
     }
 }

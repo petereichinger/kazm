@@ -7,7 +7,7 @@ pub enum StatusCode {
 }
 
 impl StatusCode {
-    pub fn to_response(status_code: StatusCode) -> String {
-        format!("{} {}", status_code as u16, status_code.to_string())
+    pub fn to_response(self) -> String {
+        format!("{} {}", self as u16, self.to_string())
     }
 }

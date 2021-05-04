@@ -19,14 +19,14 @@ pub enum HeaderError {
 /// Contains all header information of a HTTP request
 pub struct Header {
     pub method: Method,
-    pub url: String,
+    pub uri: String,
     pub version: String,
     pub headers: HashMap<String, String>,
 }
 
 impl Display for Header {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} {} {:?}", self.method.to_string(), self.url, self.version, self.headers)
+        write!(f, "{} {} {} {:?}", self.method.to_string(), self.uri, self.version, self.headers)
     }
 }
 
@@ -86,7 +86,7 @@ impl Header {
 
         Ok(Header {
             method: method.unwrap(),
-            url: url.unwrap().to_string(),
+            uri: url.unwrap().to_string(),
             version: version.unwrap().to_string(),
             headers: header_values,
         })
