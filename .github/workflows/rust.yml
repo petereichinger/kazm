@@ -23,5 +23,8 @@ jobs:
       run: cargo clippy -- -D warnings
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Run kazm tests
       run: cargo test --verbose
+    - name: Run libkazm tests
+      run: cd libkazm
+           cargo test --verbose
