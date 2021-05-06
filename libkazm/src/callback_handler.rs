@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::error;
 
-use super::StatusCode;
+use crate::response::status_code::StatusCode;
 
 #[derive(Debug)]
 pub enum CallbackError {
@@ -22,7 +22,7 @@ impl Default for CallbackHandler {
 
 impl CallbackHandler {
     pub fn new() -> CallbackHandler {
-        CallbackHandler { callbacks: HashMap::new() }
+        CallbackHandler { callbacks: Default::default() }
     }
 
     pub fn register(&mut self, path: &str, func: Box<dyn Fn() -> StatusCode + Sync + Send>) -> Result<(), CallbackError> {

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use log::{error, info};
 use simple_logger::SimpleLogger;
 
-use libkazm::WebServer;
+use libkazm::web_server::WebServer;
 
 fn main() -> Result<(), Error> {
     SimpleLogger::new().init().unwrap();

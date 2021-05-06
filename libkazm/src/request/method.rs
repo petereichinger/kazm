@@ -1,4 +1,4 @@
-#[derive(strum_macros::EnumString, strum_macros::ToString)]
+#[derive(strum_macros::EnumString, strum_macros::ToString, PartialEq, Debug)]
 pub enum Method {
     #[strum(serialize = "GET")]
     Get,
