@@ -11,15 +11,12 @@ env:
 
 jobs:
   build:
+    name: Build And Test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
     - name: Run kazm tests
       run: cargo test --verbose
     - name: Run libkazm tests
@@ -27,6 +24,7 @@ jobs:
         cd libkazm
         cargo test --verbose
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
