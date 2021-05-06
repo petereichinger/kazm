@@ -11,20 +11,26 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run kazm tests
+      run: cargo test --verbose
+    - name: Run libkazm tests
+      run: |
+        cd libkazm
+        cargo test --verbose
+  lint:
+    runs-on: ubuntu-latest
+    steps:
     - uses: actions/checkout@v2
     - name: Install clippy for cargo
       run: rustup component add clippy
     - name: Run clippy
       run: cargo clippy -- -D warnings
-    - name: Build
-      run: cargo build --verbose
-    - name: Run kazm tests
-      run: cargo test --verbose
-    - name: Run libkazm tests
-      run: cd libkazm
-           cargo test --verbose
