@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn uri_parser_fails_when_duplicate_paths_are_specified() {
+    fn uri_parser_fails_when_duplicate_parameters_are_specified() {
         let values = UriValues::from("/Foo?Foo=Bar&Foo=Baz").err();
 
         assert_eq!(values, Some(UriParseError::DuplicateKey(String::from("Foo"))));
